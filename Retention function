@@ -1,0 +1,64 @@
+"""функция вычислющая retention""" 
+
+import pandas as pd
+import datetime as dt
+
+def retention(registration_date, enter_date):
+    """переводим в нужный формат дат"""
+    registration_date['reg_ts'] = registration_date['reg_ts'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
+    enter_date['auth_ts'] = enter_date['auth_ts'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
+
+    """соединяем таблицы"""
+    data = registration_date.merge(enter_date, how='left', on='uid')
+    
+    """переводим даты в datetime формат"""
+    data['reg_ts'] = pd.to_datetime(data['reg_ts'])
+    data['auth_ts'] = pd.to_datetime(data['auth_ts'])
+    data['reg_month'] = data['reg_ts'].astype('datetime64[M]')
+
+    """вычисляем количество дней между входом в игру и регистрацией"""
+    data['distance'] = (data['auth_ts'] - data['reg_ts']).dt.days
+
+    """вычислим размер когорты"""
+    cohort = data.groupby(['auth_ts', 'distance'], as_index=False)\
+               .agg({'uid': 'nunique'}).sort_values(by='distance', ascending=True)
+    cohort_count = cohort.pivot(index='auth_ts', columns='distance', values='uid').sort_index(ascending=False)
+
+    """сохраним первый столбец как cohort_sizes"""
+    cohort_sizes = cohort_count.iloc[:, 0]
+
+    """вычислим retention"""
+    retention = cohort_count.divide(cohort_sizes, axis=0)
+    retention.round(3) * 100
+
+    """построение графика"""
+    import seaborn as sns
+    retention.index = retention.index.astype('string').str.replace(' .*', '')
+    cm = sns.light_palette("seagreen", as_cmap=True)
+    df_style = (
+        retention
+        .style
+        .set_caption('User Retention')
+        .background_gradient(cmap=cm, subset=retention.select_dtypes(float).columns)   
+        .highlight_null('white')
+        .format("{:.0%}", na_rep="", subset=retention.select_dtypes(float).columns))    
+
+    return df_style
+   
+"""прочитаем данные registration_date - дата регистрации, enter_date -  даты когда пользователи входили в игру"""
+registration_date = pd.read_csv('~/shared/problem1-reg_data.csv', sep=";")
+enter_date = pd.read_csv('~/shared/problem1-auth_data.csv', sep=";")
+
+"""переведём даты в нужный формат"""
+registration_date['reg_ts'] = pd.to_datetime(registration_date['reg_ts'], unit='s')
+registration_date['reg_ts'] = pd.to_datetime(registration_date['reg_ts'].dt.date, format='%Y-%m-%d')
+
+enter_date['auth_ts'] = pd.to_datetime(enter_date['auth_ts'], unit='s')
+enter_date['auth_ts'] = pd.to_datetime(enter_date['auth_ts'].dt.date, format='%Y-%m-%d')
+
+"""выделим часть данных для проверки функции"""
+reg_crop = registration_date.loc[registration_date['reg_ts'] >= '2020-05-01']
+ent_crop = enter_date.loc[enter_date['auth_ts'] >= '2020-05-01']
+
+"""тестируем функцию"""
+retention(reg_crop, ent_crop)
