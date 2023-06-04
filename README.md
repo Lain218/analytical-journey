@@ -1,1 +1,1 @@
-# Created function which calculates retention rate of players by days from registration date.
+Created function which calculates retention rate of players by days from registration date.
