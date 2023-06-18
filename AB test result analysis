@@ -1,5 +1,0 @@
-Comprehensive analysis of A/B test results.
-
-Input: Available results of the A/B test, in which two groups of users were offered different sets of promotional offers. 
-       ARPU is known to be 5% higher in the test group than in the test group. However, in the control group 1,928 players out of 2,202,103 were paying,
-       and in the test group 1,805 out of 202,667. Which set of promotional offers can be considered the best?
